@@ -1,13 +1,13 @@
--- Fisch Script for Delta Executor | Optimized for 2026
--- Features: Auto-Fish, Auto-Shake, Auto-Minigame, Rarity Notifiers, and more.
+-- Fisch Script for Delta Executor | V2 Optimized
+-- Features: Auto-Fish (Remote Based), Auto-Shake (GUI Scan), Auto-Minigame (Instant Reel)
 
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-   Name = "Fisch | Delta Edition",
-   LoadingTitle = "Preparing Fishing Gear...",
+   Name = "Fisch | Delta Edition V2",
+   LoadingTitle = "Bypassing Fishing Mechanics...",
    LoadingSubtitle = "by Assistant",
-   ConfigurationSaving = { Enabled = true, FolderName = "FischDelta", FileName = "Config" },
+   ConfigurationSaving = { Enabled = true, FolderName = "FischDeltaV2", FileName = "Config" },
    KeySystem = false
 })
 
@@ -16,6 +16,7 @@ local Player = game.Players.LocalPlayer
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local GuiService = game:GetService("GuiService")
 
 local AutoFish = false
 local AutoShake = false
@@ -35,27 +36,21 @@ MainTab:CreateToggle({
    Name = "Auto-Cast (Auto-Fish)",
    CurrentValue = false,
    Flag = "AutoCast",
-   Callback = function(Value)
-      AutoFish = Value
-   end,
+   Callback = function(Value) AutoFish = Value end,
 })
 
 MainTab:CreateToggle({
    Name = "Auto-Shake",
    CurrentValue = false,
    Flag = "AutoShake",
-   Callback = function(Value)
-      AutoShake = Value
-   end,
+   Callback = function(Value) AutoShake = Value end,
 })
 
 MainTab:CreateToggle({
-   Name = "Auto-Minigame (100% Perfect)",
+   Name = "Auto-Minigame (Instant Reel)",
    CurrentValue = false,
    Flag = "AutoMinigame",
-   Callback = function(Value)
-      AutoMinigame = Value
-   end,
+   Callback = function(Value) AutoMinigame = Value end,
 })
 
 -- --- UTILITY ---
@@ -64,18 +59,14 @@ UtilityTab:CreateToggle({
    Name = "Rarity Notifier",
    CurrentValue = false,
    Flag = "Notifier",
-   Callback = function(Value)
-      RarityNotifier = Value
-   end,
+   Callback = function(Value) RarityNotifier = Value end,
 })
 
 UtilityTab:CreateToggle({
    Name = "Infinite Oxygen",
    CurrentValue = false,
    Flag = "InfOxygen",
-   Callback = function(Value)
-      InfiniteOxygen = Value
-   end,
+   Callback = function(Value) InfiniteOxygen = Value end,
 })
 
 UtilityTab:CreateSlider({
@@ -84,24 +75,28 @@ UtilityTab:CreateSlider({
    Increment = 1,
    CurrentValue = 16,
    Flag = "WS",
-   Callback = function(Value)
-      WalkSpeedValue = Value
-   end,
+   Callback = function(Value) WalkSpeedValue = Value end,
 })
 
 -- --- LOGIC LOOPS ---
 
--- Auto Cast Logic
+-- 1. Auto Cast (Using updated remote paths)
 task.spawn(function()
-    while task.wait(1) do
+    while task.wait(0.5) do
         if AutoFish then
             local Character = Player.Character
             if Character then
                 local Tool = Character:FindFirstChildOfClass("Tool")
-                if Tool and Tool:FindFirstChild("Events") and Tool.Events:FindFirstChild("Cast") then
-                    -- Trigger cast if not already fishing
-                    if not Character:FindFirstChild("FishingLine") then
-                        Tool.Events.Cast:FireServer(100) -- Full power cast
+                if Tool and Tool.Name:lower():find("rod") then
+                    -- Detect if we are NOT currently fishing
+                    if not Character:FindFirstChild("FishingLine") and not Character:FindFirstChild("Bobber") then
+                        -- Fisch usually uses a 'Cast' or 'Events' folder
+                        local events = Tool:FindFirstChild("events") or Tool:FindFirstChild("Events")
+                        local cast = events and (events:FindFirstChild("cast") or events:FindFirstChild("Cast"))
+                        if cast then
+                            cast:FireServer(100) -- Full power cast
+                            task.wait(1.5) -- Animation delay
+                        end
                     end
                 end
             end
@@ -109,63 +104,61 @@ task.spawn(function()
     end
 end)
 
--- Auto Shake Logic
+-- 2. Auto Shake (Using recursive UI detection)
 task.spawn(function()
-    while task.wait() do
+    while task.wait(0.1) do
         if AutoShake then
             local PlayerGui = Player:WaitForChild("PlayerGui")
-            local shakeUI = PlayerGui:FindFirstChild("ShakeUI", true)
-            if shakeUI and shakeUI:FindFirstChild("SafeZone") then
-                local button = shakeUI.SafeZone:FindFirstChild("Button")
-                if button and button.Visible then
-                    -- Simulate click/touch on the shake button
-                    local pos = button.AbsolutePosition + (button.AbsoluteSize / 2)
-                    VirtualInputManager:SendMouseButtonEvent(pos.X, pos.Y, 0, true, game, 1)
-                    VirtualInputManager:SendMouseButtonEvent(pos.X, pos.Y, 0, false, game, 1)
-                    task.wait(0.1)
+            -- Scan for anything named "Shake" or "Button" in the screen
+            for _, v in pairs(PlayerGui:GetDescendants()) do
+                if v:IsA("ImageButton") and v.Name == "Button" and v.Parent.Name == "SafeZone" then
+                    if v.Visible and v.ImageTransparency < 1 then
+                        -- Trigger the shake button
+                        local pos = v.AbsolutePosition + (v.AbsoluteSize / 2)
+                        VirtualInputManager:SendMouseButtonEvent(pos.X, pos.Y, 0, true, game, 1)
+                        VirtualInputManager:SendMouseButtonEvent(pos.X, pos.Y, 0, false, game, 1)
+                    end
                 end
             end
         end
     end
 end)
 
--- Auto Minigame Logic
+-- 3. Auto Minigame (Instant Reel Remote)
 task.spawn(function()
-    while task.wait() do
+    while task.wait(0.1) do
         if AutoMinigame then
             local PlayerGui = Player:WaitForChild("PlayerGui")
-            local minigameUI = PlayerGui:FindFirstChild("Minigame", true)
-            if minigameUI and minigameUI:FindFirstChild("Bar") then
-                -- In Fisch, the minigame usually involves keeping a bar inside a zone
-                -- We manipulate the 'Position' or trigger the RemoteEvent directly
-                local reelEvent = ReplicatedStorage:FindFirstChild("Reel", true)
-                if reelEvent and reelEvent:IsA("RemoteEvent") then
-                    reelEvent:FireServer(100) -- Force 100% progress
+            local minigame = PlayerGui:FindFirstChild("Minigame", true)
+            if minigame and minigame.Visible then
+                -- Fisch 2026 update: The 'Reel' event is often in ReplicatedStorage.Events
+                local reel = ReplicatedStorage:FindFirstChild("Reel", true) or ReplicatedStorage:FindFirstChild("FinishReel", true)
+                if reel and reel:IsA("RemoteEvent") then
+                    reel:FireServer(100, true) -- Send 100% progress and 'Perfect' catch flag
                 end
             end
         end
     end
 end)
 
--- Rarity Notifier Logic
+-- 4. Rarity Notifier
 task.spawn(function()
-    -- Listen for fish caught events
-    local catchRemote = ReplicatedStorage:FindFirstChild("CatchFish", true)
-    if catchRemote then
-        catchRemote.OnClientEvent:Connect(function(fishData)
-            if RarityNotifier and fishData and fishData.Rarity then
+    -- Look for the specific 'Catch' or 'Result' event
+    local result = ReplicatedStorage:FindFirstChild("Result", true) or ReplicatedStorage:FindFirstChild("FishCaught", true)
+    if result and result:IsA("RemoteEvent") then
+        result.OnClientEvent:Connect(function(data)
+            if RarityNotifier and data and data.Rarity then
                 Rayfield:Notify({
-                    Title = "🐟 FISH CAUGHT!",
-                    Content = "You caught a " .. fishData.Rarity .. " " .. (fishData.Name or "Fish") .. "!",
-                    Duration = 5,
-                    Image = 4483362458,
+                    Title = "🐟 " .. (data.Rarity:upper()) .. " caught!",
+                    Content = "You caught a " .. data.Name .. " (" .. data.Weight .. "kg)",
+                    Duration = 5
                 })
             end
         end)
     end
 end)
 
--- Movement & Oxygen Loop
+-- 5. Movement & Oxygen
 RunService.Heartbeat:Connect(function()
     if Player.Character and Player.Character:FindFirstChild("Humanoid") then
         Player.Character.Humanoid.WalkSpeed = WalkSpeedValue
@@ -178,7 +171,7 @@ RunService.Heartbeat:Connect(function()
 end)
 
 Rayfield:Notify({
-   Title = "Fisch Script Loaded!",
-   Content = "Happy Fishing! Remember to equip your rod first.",
+   Title = "Fisch V2 Loaded!",
+   Content = "Optimized for the latest 2026 update.",
    Duration = 5,
 })
