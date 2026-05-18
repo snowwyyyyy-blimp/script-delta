@@ -1,108 +1,121 @@
--- Dandy's World Script for Delta Executor | V1 OP Hub
--- Features: Auto-Farm, Godmode, ESP, Infinite Stamina, and more.
+-- Slime RNG Script for Delta Executor | V1 OP Hub
+-- Features: Auto-Roll, Auto-Farm Mobs, Auto-Collect, Auto-Rebirth, and more.
 
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-   Name = "Dandy's World | Delta Edition",
-   LoadingTitle = "Preparing Toon Radar...",
+   Name = "Slime RNG | Delta Edition",
+   LoadingTitle = "Gooping Up the Server...",
    LoadingSubtitle = "by Assistant",
-   ConfigurationSaving = { Enabled = true, FolderName = "DandysDelta", FileName = "Config" },
+   ConfigurationSaving = { Enabled = true, FolderName = "SlimeRNGDelta", FileName = "Config" },
    KeySystem = false
 })
 
 -- Variables
 local Player = game.Players.LocalPlayer
 local Character = Player.Character or Player.CharacterAdded:Wait()
+local Humanoid = Character:WaitForChild("Humanoid")
+local RootPart = Character:WaitForChild("HumanoidRootPart")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 
-local AutoFarmIchor = false
-local AutoFixGenerators = false
-local AutoSkillCheck = false
-local GodMode = false
-local InfiniteStamina = false
-local ESPEnabled = false
-local FullBrightEnabled = false
-local ThirdPersonEnabled = false
+local AutoRoll = false
+local AutoFarm = false
+local AutoCollect = false
+local AutoEquip = false
+local AutoRebirth = false
+local AutoUpgrade = false
+local RarityNotifier = false
 local WalkSpeedValue = 16
 local JumpPowerValue = 50
+local NoClip = false
+local InfiniteJump = false
 
 -- Tabs
-local MainTab = Window:CreateTab("Main / OP", 4483362458)
-local VisualsTab = Window:CreateTab("Visuals", 4483362458)
+local MainTab = Window:CreateTab("Automation", 4483362458)
+local CombatTab = Window:CreateTab("Combat", 4483362458)
 local MovementTab = Window:CreateTab("Movement", 4483345998)
-local UtilityTab = Window:CreateTab("Utility", 4483362458)
+local VisualsTab = Window:CreateTab("Visuals", 4483362458)
 
--- --- MAIN / OP ---
+-- --- AUTOMATION ---
 
 MainTab:CreateToggle({
-   Name = "Auto-Collect Ichor/Capsules",
+   Name = "Auto Roll Slimes",
    CurrentValue = false,
-   Flag = "AutoIchor",
-   Callback = function(Value) AutoFarmIchor = Value end,
+   Flag = "AutoRoll",
+   Callback = function(Value) AutoRoll = Value end,
 })
 
 MainTab:CreateToggle({
-   Name = "Auto-Fix Machines (Generators)",
+   Name = "Auto Rebirth",
    CurrentValue = false,
-   Flag = "AutoFix",
-   Callback = function(Value) AutoFixGenerators = Value end,
+   Flag = "AutoRebirth",
+   Callback = function(Value) AutoRebirth = Value end,
 })
 
 MainTab:CreateToggle({
-   Name = "Auto Skill Check (100% Success)",
+   Name = "Auto Buy Upgrades",
    CurrentValue = false,
-   Flag = "AutoSkill",
-   Callback = function(Value) AutoSkillCheck = Value end,
+   Flag = "AutoUpgrade",
+   Callback = function(Value) AutoUpgrade = Value end,
 })
 
 MainTab:CreateToggle({
-   Name = "God Mode (No Twisted Damage)",
+   Name = "Auto Equip Best Slimes",
    CurrentValue = false,
-   Flag = "GodMode",
-   Callback = function(Value) 
-       GodMode = Value 
-       if Value then
-           Rayfield:Notify({Title = "God Mode", Content = "Attempting to disable monster collisions...", Duration = 3})
-       end
+   Flag = "AutoEquip",
+   Callback = function(Value) AutoEquip = Value end,
+})
+
+-- --- COMBAT ---
+
+CombatTab:CreateToggle({
+   Name = "Auto Farm Mobs (Kills All)",
+   CurrentValue = false,
+   Flag = "AutoFarm",
+   Callback = function(Value) AutoFarm = Value end,
+})
+
+CombatTab:CreateToggle({
+   Name = "Auto Collect Loot (Goop/Coins)",
+   CurrentValue = false,
+   Flag = "AutoCollect",
+   Callback = function(Value) AutoCollect = Value end,
+})
+
+-- --- MOVEMENT ---
+
+MovementTab:CreateInput({
+   Name = "WalkSpeed",
+   PlaceholderText = "16",
+   RemoveTextAfterFocusLost = false,
+   Callback = function(Text)
+      WalkSpeedValue = tonumber(Text) or 16
    end,
 })
 
-MainTab:CreateToggle({
-   Name = "Infinite Stamina",
+MovementTab:CreateToggle({
+   Name = "No Clip",
    CurrentValue = false,
-   Flag = "InfStamina",
-   Callback = function(Value) InfiniteStamina = Value end,
+   Flag = "NoClip",
+   Callback = function(Value) NoClip = Value end,
+})
+
+MovementTab:CreateToggle({
+   Name = "Infinite Jump",
+   CurrentValue = false,
+   Flag = "InfJump",
+   Callback = function(Value) InfiniteJump = Value end,
 })
 
 -- --- VISUALS ---
 
 VisualsTab:CreateToggle({
-   Name = "Global ESP (Twisteds/Machines/Items)",
+   Name = "Rarity Notifier (1/10k+)",
    CurrentValue = false,
-   Flag = "ESP",
-   Callback = function(Value) ESPEnabled = Value end,
-})
-
-VisualsTab:CreateToggle({
-   Name = "Third Person (Unlocked Mouse)",
-   CurrentValue = false,
-   Flag = "ThirdPerson",
-   Callback = function(Value)
-      ThirdPersonEnabled = Value
-      if Value then
-          Player.CameraMode = Enum.CameraMode.Classic
-          Player.CameraMaxZoomDistance = 12
-          Player.CameraMinZoomDistance = 12
-          UserInputService.MouseBehavior = Enum.MouseBehavior.Default
-      else
-          Player.CameraMode = Enum.CameraMode.LockFirstPerson
-          Player.CameraMaxZoomDistance = 0.5
-          Player.CameraMinZoomDistance = 0.5
-      end
-   end,
+   Flag = "Notifier",
+   Callback = function(Value) RarityNotifier = Value end,
 })
 
 VisualsTab:CreateToggle({
@@ -110,7 +123,6 @@ VisualsTab:CreateToggle({
    CurrentValue = false,
    Flag = "FullBright",
    Callback = function(Value)
-      FullBrightEnabled = Value
       if Value then
           game:GetService("Lighting").Ambient = Color3.fromRGB(255, 255, 255)
           game:GetService("Lighting").OutdoorAmbient = Color3.fromRGB(255, 255, 255)
@@ -121,144 +133,129 @@ VisualsTab:CreateToggle({
    end,
 })
 
--- --- MOVEMENT ---
-
-MovementTab:CreateSlider({
-   Name = "WalkSpeed",
-   Range = {16, 200},
-   Increment = 1,
-   CurrentValue = 16,
-   Flag = "WS",
-   Callback = function(Value) WalkSpeedValue = Value end,
-})
-
-MovementTab:CreateSlider({
-   Name = "JumpPower",
-   Range = {50, 200},
-   Increment = 1,
-   CurrentValue = 50,
-   Flag = "JP",
-   Callback = function(Value) JumpPowerValue = Value end,
-})
-
--- --- UTILITY ---
-
-UtilityTab:CreateButton({
-   Name = "Teleport to Elevator",
-   Callback = function()
-       local elevator = workspace:FindFirstChild("Elevator", true) or workspace:FindFirstChild("Escape", true)
-       if elevator and Player.Character then
-           Player.Character:MoveTo(elevator.Position + Vector3.new(0, 3, 0))
-       end
-   end,
-})
-
-UtilityTab:CreateButton({
-   Name = "Teleport to Unfinished Machine",
-   Callback = function()
-       for _, v in pairs(workspace:GetDescendants()) do
-           if v.Name:lower():find("machine") or v.Name:lower():find("generator") then
-               -- Simple check if it has a progress value or objective tag
-               local prog = v:FindFirstChild("Progress") or v:FindFirstChild("Value")
-               if prog and prog.Value < 100 then
-                   Player.Character:MoveTo(v.Position + Vector3.new(0, 5, 0))
-                   break
-               end
-           end
-       end
-   end,
-})
-
 -- --- LOGIC LOOPS ---
 
--- Main Automation Loop
+-- Main Action Loop
 task.spawn(function()
-    while task.wait() do
+    while task.wait(0.1) do
         pcall(function()
-            if Player.Character and Player.Character:FindFirstChild("Humanoid") then
-                local hum = Player.Character.Humanoid
-                hum.WalkSpeed = WalkSpeedValue
-                hum.JumpPower = JumpPowerValue
-                
-                -- Infinite Stamina
-                if InfiniteStamina then
-                    local s = Player.Character:FindFirstChild("Stamina") or Player:FindFirstChild("Stamina")
-                    if s then s.Value = 100 end
+            -- Auto Roll Logic
+            if AutoRoll then
+                local rollRemote = ReplicatedStorage:FindFirstChild("Roll", true) or ReplicatedStorage:FindFirstChild("RollEvent", true)
+                if rollRemote and rollRemote:IsA("RemoteEvent") then
+                    rollRemote:FireServer()
                 end
+            end
 
-                -- Third Person Mouse Fix
-                if ThirdPersonEnabled then
-                    UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+            -- Auto Rebirth Logic
+            if AutoRebirth then
+                local rebirthRemote = ReplicatedStorage:FindFirstChild("Rebirth", true)
+                if rebirthRemote and rebirthRemote:IsA("RemoteEvent") then
+                    rebirthRemote:FireServer()
                 end
+            end
 
-                -- Auto Skill Check
-                if AutoSkillCheck then
-                    local playerGui = Player:WaitForChild("PlayerGui")
-                    local skillCheck = playerGui:FindFirstChild("SkillCheck", true) or playerGui:FindFirstChild("Minigame", true)
-                    if skillCheck and skillCheck.Visible then
-                        -- Simulates the 'E' or 'Space' press at the right time
-                        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
-                        task.wait(0.05)
-                        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Space, false, game)
-                        task.wait(0.5)
+            -- Auto Upgrade Logic
+            if AutoUpgrade then
+                local upgradeRemote = ReplicatedStorage:FindFirstChild("Upgrade", true) or ReplicatedStorage:FindFirstChild("BuyUpgrade", true)
+                if upgradeRemote and upgradeRemote:IsA("RemoteEvent") then
+                    -- Cycle through common upgrade IDs
+                    for i = 1, 10 do
+                        upgradeRemote:FireServer(i)
                     end
                 end
-                
-                -- God Mode
-                if GodMode then
-                    for _, v in pairs(workspace:GetDescendants()) do
-                        if v:IsA("Model") and (v.Name:lower():find("twisted") or v.Name:lower():find("dandy")) then
-                            for _, p in pairs(v:GetDescendants()) do
-                                if p:IsA("BasePart") then p.CanCollide = false end
-                            end
-                        end
-                    end
+            end
+
+            -- Auto Equip Best
+            if AutoEquip then
+                local equipRemote = ReplicatedStorage:FindFirstChild("EquipBest", true)
+                if equipRemote and equipRemote:IsA("RemoteEvent") then
+                    equipRemote:FireServer()
                 end
             end
         end)
     end
 end)
 
--- ESP & Item Tracking
+-- Combat & Loot Loop
 task.spawn(function()
-    while task.wait(1) do
-        if ESPEnabled then
-            for _, v in pairs(workspace:GetDescendants()) do
-                -- Detect Twisted, Machines, and Ichor/Capsules
-                local isTwisted = v.Name:lower():find("twisted") or v.Name:lower():find("dandy")
-                local isMachine = v.Name:lower():find("machine") or v.Name:lower():find("generator")
-                local isItem = v.Name:lower():find("ichor") or v.Name:lower():find("capsule")
-                
-                if (isTwisted or isMachine or isItem) and v:IsA("Model") then
-                    local root = v:FindFirstChild("HumanoidRootPart") or v:FindFirstChildOfClass("BasePart")
-                    if root and not root:FindFirstChild("Highlight") then
-                        local h = Instance.new("Highlight", root)
-                        h.FillTransparency = 0.5
-                        h.OutlineColor = Color3.fromRGB(255, 255, 255)
-                        
-                        if isTwisted then h.FillColor = Color3.fromRGB(255, 0, 0)
-                        elseif isMachine then h.FillColor = Color3.fromRGB(0, 255, 0)
-                        else h.FillColor = Color3.fromRGB(0, 0, 255) end
-                        
-                        local bbg = Instance.new("BillboardGui", root)
-                        bbg.Size = UDim2.new(0, 100, 0, 30)
-                        bbg.AlwaysOnTop = true
-                        bbg.ExtentsOffset = Vector3.new(0, 3, 0)
-                        local tl = Instance.new("TextLabel", bbg)
-                        tl.Size = UDim2.new(1, 0, 1, 0)
-                        tl.BackgroundTransparency = 1
-                        tl.Text = v.Name
-                        tl.TextColor3 = h.FillColor
-                        tl.TextScaled = true
+    while task.wait(0.1) do
+        if AutoFarm then
+            pcall(function()
+                local mobs = workspace:FindFirstChild("Mobs") or workspace:FindFirstChild("Enemies")
+                if mobs then
+                    for _, mob in pairs(mobs:GetChildren()) do
+                        if mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
+                            -- Teleport near mob or fire attack remote
+                            local attackRemote = ReplicatedStorage:FindFirstChild("Attack", true) or ReplicatedStorage:FindFirstChild("DamageMob", true)
+                            if attackRemote then
+                                attackRemote:FireServer(mob)
+                            end
+                        end
                     end
                 end
-            end
+            end)
+        end
+
+        if AutoCollect then
+            pcall(function()
+                local drops = workspace:FindFirstChild("Drops") or workspace:FindFirstChild("Loot") or workspace:FindFirstChild("Coins")
+                if drops then
+                    for _, drop in pairs(drops:GetChildren()) do
+                        if drop:IsA("BasePart") or drop:IsA("Model") then
+                            local dropRoot = drop:IsA("Model") and drop:FindFirstChildOfClass("BasePart") or drop
+                            if dropRoot then
+                                dropRoot.CFrame = Player.Character.HumanoidRootPart.CFrame
+                            end
+                        end
+                    end
+                end
+            end)
         end
     end
 end)
 
+-- Character & Movement Loop
+RunService.Heartbeat:Connect(function()
+    pcall(function()
+        if Player.Character and Player.Character:FindFirstChild("Humanoid") then
+            local hum = Player.Character.Humanoid
+            hum.WalkSpeed = WalkSpeedValue
+            
+            if NoClip then
+                for _, v in pairs(Player.Character:GetDescendants()) do
+                    if v:IsA("BasePart") then v.CanCollide = false end
+                end
+            end
+        end
+    end)
+end)
+
+-- Input Listeners
+UserInputService.InputBegan:Connect(function(input, processed)
+    if not processed and input.KeyCode == Enum.KeyCode.Space and InfiniteJump then
+        Player.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+    end
+end)
+
+-- Rarity Notifier Listener
+task.spawn(function()
+    local rollResult = ReplicatedStorage:FindFirstChild("RollResult", true) or ReplicatedStorage:FindFirstChild("NewSlime", true)
+    if rollResult then
+        rollResult.OnClientEvent:Connect(function(data)
+            if RarityNotifier and data and data.Chance and data.Chance >= 10000 then
+                Rayfield:Notify({
+                    Title = "🌟 INSANE LUCK!",
+                    Content = "You just rolled a " .. (data.Name or "Slime") .. " (1 in " .. data.Chance .. ")!",
+                    Duration = 7
+                })
+            end
+        end)
+    end
+end)
+
 Rayfield:Notify({
-   Title = "Dandy's World OP Loaded!",
-   Content = "Enjoy your infinite ichor and godmode!",
+   Title = "Slime RNG Hub Loaded!",
+   Content = "Good luck on your 1-in-Trillion rolls!",
    Duration = 5,
 })
