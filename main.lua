@@ -24,52 +24,102 @@ local InfiniteStamina = false
 local NoSlideCooldown = false
 local FullBrightEnabled = false
 local AntiRagdoll = false
+local GodMode = false
+local NoClip = false
+local FlyEnabled = false
+local InfiniteJump = false
 local WalkSpeedValue = 16
 local JumpPowerValue = 50
 local FOVValue = 70
+local FlySpeed = 50
 
 -- Tabs
-local CombatTab = Window:CreateTab("Combat/Movement", 4483362458)
+local MainTab = Window:CreateTab("Combat/OP", 4483362458)
 local VisualsTab = Window:CreateTab("Visuals", 4483362458)
+local MovementTab = Window:CreateTab("Movement", 4483345998)
 local UtilityTab = Window:CreateTab("Utility", 4483345998)
+
+-- --- MAIN / OP ---
+
+MainTab:CreateToggle({
+   Name = "Godmode (Experimental)",
+   CurrentValue = false,
+   Flag = "GodMode",
+   Callback = function(Value)
+      GodMode = Value
+      if Value then
+          Rayfield:Notify({Title = "Godmode", Content = "Attempting to disable bot collisions...", Duration = 3})
+      end
+   end,
+})
+
+MainTab:CreateToggle({
+   Name = "No Clip (Walk through walls)",
+   CurrentValue = false,
+   Flag = "NoClip",
+   Callback = function(Value) NoClip = Value end,
+})
+
+MainTab:CreateToggle({
+   Name = "Fly Hack",
+   CurrentValue = false,
+   Flag = "Fly",
+   Callback = function(Value) FlyEnabled = Value end,
+})
+
+MainTab:CreateInput({
+   Name = "Fly Speed",
+   PlaceholderText = "50",
+   RemoveTextAfterFocusLost = false,
+   Callback = function(Text)
+      FlySpeed = tonumber(Text) or 50
+   end,
+})
+
+MainTab:CreateToggle({
+   Name = "Infinite Jump",
+   CurrentValue = false,
+   Flag = "InfJump",
+   Callback = function(Value) InfiniteJump = Value end,
+})
 
 -- --- MOVEMENT ---
 
-CombatTab:CreateToggle({
+MovementTab:CreateInput({
+   Name = "Unlimited WalkSpeed",
+   PlaceholderText = "16",
+   RemoveTextAfterFocusLost = false,
+   Callback = function(Text)
+      WalkSpeedValue = tonumber(Text) or 16
+   end,
+})
+
+MovementTab:CreateToggle({
    Name = "Auto Bhop",
    CurrentValue = false,
    Flag = "Bhop",
    Callback = function(Value) AutoBhop = Value end,
 })
 
-CombatTab:CreateToggle({
+MovementTab:CreateToggle({
    Name = "Infinite Stamina",
    CurrentValue = false,
    Flag = "InfStamina",
    Callback = function(Value) InfiniteStamina = Value end,
 })
 
-CombatTab:CreateToggle({
+MovementTab:CreateToggle({
    Name = "No Slide Cooldown",
    CurrentValue = false,
    Flag = "NoSlideCD",
    Callback = function(Value) NoSlideCooldown = Value end,
 })
 
-CombatTab:CreateToggle({
+MovementTab:CreateToggle({
    Name = "Anti-Ragdoll",
    CurrentValue = false,
    Flag = "AntiRagdoll",
    Callback = function(Value) AntiRagdoll = Value end,
-})
-
-CombatTab:CreateSlider({
-   Name = "WalkSpeed",
-   Range = {16, 150},
-   Increment = 1,
-   CurrentValue = 16,
-   Flag = "WS",
-   Callback = function(Value) WalkSpeedValue = Value end,
 })
 
 -- --- VISUALS ---
@@ -126,26 +176,21 @@ VisualsTab:CreateToggle({
 
 -- --- UTILITY ---
 
-UtilityTab:CreateButton({
-   Name = "Teleport to Safe Zone",
-   Callback = function()
-       -- Search for SafeRoom or spawn areas
-       local safeZone = workspace:FindFirstChild("SafeRoom", true) or workspace:FindFirstChild("SpawnLocation", true)
-       if safeZone and Player.Character then
-           Player.Character:MoveTo(safeZone.Position + Vector3.new(0, 3, 0))
-       end
+UtilityTab:CreateToggle({
+   Name = "Infinite Flashlight",
+   CurrentValue = false,
+   Flag = "InfFlash",
+   Callback = function(Value)
+       -- Search for Flashlight tool and its battery value
    end,
 })
 
 UtilityTab:CreateButton({
-   Name = "Instant Revive Nearby",
+   Name = "Teleport to Safe Zone",
    Callback = function()
-       -- Scans for players with "Downed" status or Ragdoll state
-       for _, p in pairs(game.Players:GetPlayers()) do
-           if p ~= Player and p.Character and p.Character:FindFirstChild("Humanoid") then
-               -- Placeholder for reviving remotes (game-specific)
-               Rayfield:Notify({Title = "Revive", Content = "Attempting to help " .. p.Name, Duration = 2})
-           end
+       local safeZone = workspace:FindFirstChild("SafeRoom", true) or workspace:FindFirstChild("SpawnLocation", true)
+       if safeZone and Player.Character then
+           Player.Character:MoveTo(safeZone.Position + Vector3.new(0, 3, 0))
        end
    end,
 })
@@ -167,23 +212,93 @@ UtilityTab:CreateToggle({
 
 -- --- LOGIC LOOPS ---
 
+-- Fly Logic
+local function fly()
+    local bg = Instance.new("BodyGyro", Player.Character.HumanoidRootPart)
+    local bv = Instance.new("BodyVelocity", Player.Character.HumanoidRootPart)
+    bg.P = 9e4
+    bg.maxTorque = Vector3.new(9e9, 9e9, 9e9)
+    bg.cframe = Player.Character.HumanoidRootPart.CFrame
+    bv.velocity = Vector3.new(0, 0.1, 0)
+    bv.maxForce = Vector3.new(9e9, 9e9, 9e9)
+    
+    spawn(function()
+        while FlyEnabled do
+            task.wait()
+            Player.Character.Humanoid.PlatformStand = true
+            local targetVelocity = Vector3.new(0, 0.1, 0)
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+                targetVelocity = targetVelocity + (Camera.CFrame.LookVector * FlySpeed)
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+                targetVelocity = targetVelocity - (Camera.CFrame.LookVector * FlySpeed)
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+                targetVelocity = targetVelocity - (Camera.CFrame.RightVector * FlySpeed)
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+                targetVelocity = targetVelocity + (Camera.CFrame.RightVector * FlySpeed)
+            end
+            bv.velocity = targetVelocity
+            bg.cframe = Camera.CFrame
+        end
+        Player.Character.Humanoid.PlatformStand = false
+        bg:Destroy()
+        bv:Destroy()
+    end)
+end
+
+-- Input Listeners
+UserInputService.InputBegan:Connect(function(input, processed)
+    if not processed and input.KeyCode == Enum.KeyCode.Space and InfiniteJump then
+        Player.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+    end
+end)
+
 -- Character Loop
 RunService.Heartbeat:Connect(function()
     pcall(function()
         if Player.Character and Player.Character:FindFirstChild("Humanoid") then
             local hum = Player.Character.Humanoid
+            local root = Player.Character.HumanoidRootPart
             
-            -- Speed & Jump
-            hum.WalkSpeed = WalkSpeedValue
+            -- WalkSpeed
+            if not FlyEnabled then
+                hum.WalkSpeed = WalkSpeedValue
+            end
             
             -- FOV
             Camera.FieldOfView = FOVValue
             
             -- Bhop
             if AutoBhop and UserInputService:IsKeyDown(Enum.KeyCode.Space) then
-                if Player.Character.Humanoid.FloorMaterial ~= Enum.Material.Air then
-                    Player.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                if hum.FloorMaterial ~= Enum.Material.Air then
+                    hum:ChangeState(Enum.HumanoidStateType.Jumping)
                 end
+            end
+            
+            -- No Clip
+            if NoClip then
+                for _, v in pairs(Player.Character:GetDescendants()) do
+                    if v:IsA("BasePart") then v.CanCollide = false end
+                end
+            end
+
+            -- Godmode Logic
+            if GodMode then
+                -- Attempt to disable collision with bots
+                for _, bot in pairs(workspace:GetDescendants()) do
+                    if bot:IsA("Model") and (bot:FindFirstChild("Audio") or bot:FindFirstChild("Face")) then
+                        for _, p in pairs(bot:GetDescendants()) do
+                            if p:IsA("BasePart") then p.CanCollide = false end
+                        end
+                    end
+                end
+            end
+
+            -- Fly Activation
+            if FlyEnabled and not Player.Character.HumanoidRootPart:FindFirstChild("BodyVelocity") then
+                fly()
             end
             
             -- Third Person Mouse Fix
@@ -196,7 +311,7 @@ RunService.Heartbeat:Connect(function()
                 hum:ChangeState(Enum.HumanoidStateType.GettingUp)
             end
             
-            -- Stamina Logic (Nico's usually uses a value in character or local script)
+            -- Stamina Logic
             if InfiniteStamina then
                 local s = Player.Character:FindFirstChild("Stamina") or Player:FindFirstChild("Stamina")
                 if s then s.Value = 100 end
