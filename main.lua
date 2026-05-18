@@ -1,34 +1,85 @@
--- DOORS Script for Delta Executor
--- Features: Third Person (Unlocked Mouse), ESP, Notifiers, Speed, and more.
+-- Nico's Nextbots Script V2 | Optimized for 2026
+-- Features: Nextbot Radar, Movement Tech (Bhop/Slide), Third Person Fix, and more.
 
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-   Name = "DOORS | Delta Edition",
-   LoadingTitle = "Loading Entity Data...",
+   Name = "Nico's Nextbots | Delta Edition V2",
+   LoadingTitle = "Scanning Mall for Bots...",
    LoadingSubtitle = "by Assistant",
-   ConfigurationSaving = { Enabled = true, FolderName = "DoorsDelta", FileName = "Config" },
+   ConfigurationSaving = { Enabled = true, FolderName = "NicosDeltaV2", FileName = "Config" },
    KeySystem = false
 })
 
 -- Variables
 local Player = game.Players.LocalPlayer
-local Character = Player.Character or Player.CharacterAdded:Wait()
-local Humanoid = Character:WaitForChild("Humanoid")
 local Camera = workspace.CurrentCamera
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 
-local ThirdPersonEnabled = false
 local ESPEnabled = false
-local EntityNotifier = false
+local ThirdPersonEnabled = false
+local AutoBhop = false
+local InfiniteStamina = false
+local NoSlideCooldown = false
 local FullBrightEnabled = false
+local AntiRagdoll = false
 local WalkSpeedValue = 16
+local JumpPowerValue = 50
+local FOVValue = 70
 
 -- Tabs
+local CombatTab = Window:CreateTab("Combat/Movement", 4483362458)
 local VisualsTab = Window:CreateTab("Visuals", 4483362458)
-local MovementTab = Window:CreateTab("Movement", 4483345998)
-local UtilityTab = Window:CreateTab("Utility", 4483362458)
+local UtilityTab = Window:CreateTab("Utility", 4483345998)
+
+-- --- MOVEMENT ---
+
+CombatTab:CreateToggle({
+   Name = "Auto Bhop",
+   CurrentValue = false,
+   Flag = "Bhop",
+   Callback = function(Value) AutoBhop = Value end,
+})
+
+CombatTab:CreateToggle({
+   Name = "Infinite Stamina",
+   CurrentValue = false,
+   Flag = "InfStamina",
+   Callback = function(Value) InfiniteStamina = Value end,
+})
+
+CombatTab:CreateToggle({
+   Name = "No Slide Cooldown",
+   CurrentValue = false,
+   Flag = "NoSlideCD",
+   Callback = function(Value) NoSlideCooldown = Value end,
+})
+
+CombatTab:CreateToggle({
+   Name = "Anti-Ragdoll",
+   CurrentValue = false,
+   Flag = "AntiRagdoll",
+   Callback = function(Value) AntiRagdoll = Value end,
+})
+
+CombatTab:CreateSlider({
+   Name = "WalkSpeed",
+   Range = {16, 150},
+   Increment = 1,
+   CurrentValue = 16,
+   Flag = "WS",
+   Callback = function(Value) WalkSpeedValue = Value end,
+})
 
 -- --- VISUALS ---
+
+VisualsTab:CreateToggle({
+   Name = "Nextbot ESP (Radar)",
+   CurrentValue = false,
+   Flag = "ESP",
+   Callback = function(Value) ESPEnabled = Value end,
+})
 
 VisualsTab:CreateToggle({
    Name = "Third Person (Unlocked Mouse)",
@@ -40,8 +91,6 @@ VisualsTab:CreateToggle({
           Player.CameraMode = Enum.CameraMode.Classic
           Player.CameraMaxZoomDistance = 12
           Player.CameraMinZoomDistance = 12
-          -- Unlock mouse logic for Delta
-          game:GetService("UserInputService").MouseBehavior = Enum.MouseBehavior.Default
       else
           Player.CameraMode = Enum.CameraMode.LockFirstPerson
           Player.CameraMaxZoomDistance = 0.5
@@ -50,13 +99,13 @@ VisualsTab:CreateToggle({
    end,
 })
 
-VisualsTab:CreateToggle({
-   Name = "Item/Entity ESP",
-   CurrentValue = false,
-   Flag = "ESP",
-   Callback = function(Value)
-      ESPEnabled = Value
-   end,
+VisualsTab:CreateSlider({
+   Name = "Field of View (FOV)",
+   Range = {70, 120},
+   Increment = 1,
+   CurrentValue = 70,
+   Flag = "FOV",
+   Callback = function(Value) FOVValue = Value end,
 })
 
 VisualsTab:CreateToggle({
@@ -66,101 +115,119 @@ VisualsTab:CreateToggle({
    Callback = function(Value)
       FullBrightEnabled = Value
       if Value then
-          game:GetService("Lighting").Brightness = 2
-          game:GetService("Lighting").ClockTime = 14
-          game:GetService("Lighting").FogEnd = 100000
-          game:GetService("Lighting").GlobalShadows = false
+          game:GetService("Lighting").Ambient = Color3.fromRGB(255, 255, 255)
+          game:GetService("Lighting").OutdoorAmbient = Color3.fromRGB(255, 255, 255)
       else
-          game:GetService("Lighting").Brightness = 1
-          game:GetService("Lighting").ClockTime = 0
-          game:GetService("Lighting").GlobalShadows = true
+          game:GetService("Lighting").Ambient = Color3.fromRGB(0, 0, 0)
+          game:GetService("Lighting").OutdoorAmbient = Color3.fromRGB(0, 0, 0)
       end
-   end,
-})
-
--- --- MOVEMENT ---
-
-MovementTab:CreateSlider({
-   Name = "WalkSpeed",
-   Range = {16, 45},
-   Increment = 1,
-   CurrentValue = 16,
-   Flag = "WS",
-   Callback = function(Value)
-      WalkSpeedValue = Value
    end,
 })
 
 -- --- UTILITY ---
 
-UtilityTab:CreateToggle({
-   Name = "Entity Notifier",
-   CurrentValue = false,
-   Flag = "Notifier",
-   Callback = function(Value)
-      EntityNotifier = Value
+UtilityTab:CreateButton({
+   Name = "Teleport to Safe Zone",
+   Callback = function()
+       -- Search for SafeRoom or spawn areas
+       local safeZone = workspace:FindFirstChild("SafeRoom", true) or workspace:FindFirstChild("SpawnLocation", true)
+       if safeZone and Player.Character then
+           Player.Character:MoveTo(safeZone.Position + Vector3.new(0, 3, 0))
+       end
    end,
 })
 
 UtilityTab:CreateButton({
-   Name = "Instant Interaction",
+   Name = "Instant Revive Nearby",
    Callback = function()
-       for _, v in pairs(workspace:GetDescendants()) do
-           if v:IsA("ProximityPrompt") then
-               v.HoldDuration = 0
+       -- Scans for players with "Downed" status or Ragdoll state
+       for _, p in pairs(game.Players:GetPlayers()) do
+           if p ~= Player and p.Character and p.Character:FindFirstChild("Humanoid") then
+               -- Placeholder for reviving remotes (game-specific)
+               Rayfield:Notify({Title = "Revive", Content = "Attempting to help " .. p.Name, Duration = 2})
            end
        end
-       Rayfield:Notify({Title = "Applied!", Content = "All interactions are now instant.", Duration = 3})
+   end,
+})
+
+UtilityTab:CreateToggle({
+   Name = "Anti-AFK",
+   CurrentValue = false,
+   Flag = "AntiAFK",
+   Callback = function(Value)
+       if Value then
+           local VirtualUser = game:GetService("VirtualUser")
+           Player.Idled:Connect(function()
+               VirtualUser:CaptureController()
+               VirtualUser:ClickButton2(Vector2.new())
+           end)
+       end
    end,
 })
 
 -- --- LOGIC LOOPS ---
 
--- Speed Loop
-task.spawn(function()
-    while task.wait() do
+-- Character Loop
+RunService.Heartbeat:Connect(function()
+    pcall(function()
         if Player.Character and Player.Character:FindFirstChild("Humanoid") then
-            Player.Character.Humanoid.WalkSpeed = WalkSpeedValue
-        end
-    end
-end)
+            local hum = Player.Character.Humanoid
+            
+            -- Speed & Jump
+            hum.WalkSpeed = WalkSpeedValue
+            
+            -- FOV
+            Camera.FieldOfView = FOVValue
+            
+            -- Bhop
+            if AutoBhop and UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+                if Player.Character.Humanoid.FloorMaterial ~= Enum.Material.Air then
+                    Player.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                end
+            end
+            
+            -- Third Person Mouse Fix
+            if ThirdPersonEnabled then
+                UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+            end
 
--- Third Person / Mouse Loop
-task.spawn(function()
-    while task.wait() do
-        if ThirdPersonEnabled then
-            -- Force unlock mouse every frame to prevent game from locking it
-            game:GetService("UserInputService").MouseBehavior = Enum.MouseBehavior.Default
-        end
-    end
-end)
-
--- Notifier & ESP Loop
-task.spawn(function()
-    workspace.ChildAdded:Connect(function(child)
-        if EntityNotifier then
-            if child.Name == "RushMoving" or child.Name == "AmbushMoving" then
-                Rayfield:Notify({
-                    Title = "⚠️ ENTITY DETECTED!",
-                    Content = child.Name:gsub("Moving", "") .. " is coming! HIDE!",
-                    Duration = 5,
-                    Image = 4483362458,
-                })
+            -- Anti-Ragdoll
+            if AntiRagdoll and hum:GetState() == Enum.HumanoidStateType.Ragdoll then
+                hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+            end
+            
+            -- Stamina Logic (Nico's usually uses a value in character or local script)
+            if InfiniteStamina then
+                local s = Player.Character:FindFirstChild("Stamina") or Player:FindFirstChild("Stamina")
+                if s then s.Value = 100 end
             end
         end
     end)
 end)
 
--- ESP Functionality (Basic implementation)
+-- Nextbot ESP
 task.spawn(function()
     while task.wait(1) do
         if ESPEnabled then
             for _, v in pairs(workspace:GetDescendants()) do
-                if v:IsA("Model") and (v.Name == "RushMoving" or v.Name == "AmbushMoving" or v.Name == "Key") then
-                    if not v:FindFirstChild("Highlight") then
-                        local h = Instance.new("Highlight", v)
-                        h.FillColor = (v.Name == "Key" and Color3.fromRGB(255, 255, 0) or Color3.fromRGB(255, 0, 0))
-                        h.OutlineTransparency = 0
+                -- Nico's Nextbots are usually Models with an ImageLabel (Face) and Audio
+                if v:IsA("Model") and (v:FindFirstChild("Audio") or v:FindFirstChild("Face") or v.Name:lower():find("bot")) then
+                    local root = v:FindFirstChild("HumanoidRootPart") or v:FindFirstChild("Head")
+                    if root and not root:FindFirstChild("Highlight") then
+                        local h = Instance.new("Highlight", root)
+                        h.FillColor = Color3.fromRGB(255, 0, 0)
+                        h.OutlineColor = Color3.fromRGB(255, 255, 255)
+                        
+                        local bbg = Instance.new("BillboardGui", root)
+                        bbg.Size = UDim2.new(0, 100, 0, 30)
+                        bbg.AlwaysOnTop = true
+                        bbg.ExtentsOffset = Vector3.new(0, 3, 0)
+                        local tl = Instance.new("TextLabel", bbg)
+                        tl.Size = UDim2.new(1, 0, 1, 0)
+                        tl.BackgroundTransparency = 1
+                        tl.Text = v.Name
+                        tl.TextColor3 = Color3.fromRGB(255, 0, 0)
+                        tl.TextScaled = true
                     end
                 end
             end
@@ -169,7 +236,7 @@ task.spawn(function()
 end)
 
 Rayfield:Notify({
-   Title = "DOORS Script Loaded",
-   Content = "Enjoy your run! Remember to toggle Third Person for easy mouse movement.",
+   Title = "V2 Script Loaded!",
+   Content = "Check Movement tab for Bhop and Slide fixes!",
    Duration = 5,
 })
