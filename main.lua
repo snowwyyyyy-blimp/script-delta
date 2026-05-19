@@ -27,6 +27,19 @@ while not LocalPlayer do
     LocalPlayer = Players.LocalPlayer
 end
 
+-- --- XENO/UNIVERSAL UTILS ---
+local function getSafeGui()
+    if gethui then return gethui() end
+    if CoreGui:FindFirstChild("RobloxGui") then return CoreGui.RobloxGui end
+    return CoreGui
+end
+
+local function fireEvent(event, ...)
+    if firesignal then
+        pcall(firesignal, event, ...)
+    end
+end
+
 -- --- XENO OPTIMIZATION: HOOKS ---
 -- This section ensures universal compatibility by spoofing ownership checks
 local oldNamecall
@@ -68,17 +81,31 @@ end
 -- Function to simulate purchase completion
 local function finishPurchase(id)
     local userId = LocalPlayer.UserId
+    local player = LocalPlayer
+    
     if LastPrompt.Type == "GamePass" then
-        pcall(function() MarketplaceService:SignalPromptGamePassPurchaseFinished(userId, id, true) end)
+        pcall(function() MarketplaceService:SignalPromptGamePassPurchaseFinished(player, id, true) end)
+        fireEvent(MarketplaceService.PromptGamePassPurchaseFinished, player, id, true)
     elseif LastPrompt.Type == "Product" then
         pcall(function() MarketplaceService:SignalPromptProductPurchaseFinished(userId, id, true) end)
+        fireEvent(MarketplaceService.PromptProductPurchaseFinished, userId, id, true)
     elseif LastPrompt.Type == "Asset" then
-        pcall(function() MarketplaceService:SignalPromptPurchaseFinished(userId, id, true) end)
+        pcall(function() MarketplaceService:SignalPromptPurchaseFinished(player, id, true) end)
+        fireEvent(MarketplaceService.PromptPurchaseFinished, player, id, true)
     elseif LastPrompt.Type == "Bundle" then
-        pcall(function() MarketplaceService:SignalPromptBundlePurchaseFinished(userId, id, true) end)
+        pcall(function() MarketplaceService:SignalPromptBundlePurchaseFinished(player, id, true) end)
+        fireEvent(MarketplaceService.PromptBundlePurchaseFinished, player, id, true)
     elseif LastPrompt.Type == "Premium" then
         pcall(function() MarketplaceService:SignalPromptPremiumPurchaseFinished(true) end)
+        fireEvent(MarketplaceService.PromptPremiumPurchaseFinished, true)
     end
+    
+    -- Force close the UI
+    pcall(function()
+        GuiService:SetMenuIsOpen(true)
+        task.wait()
+        GuiService:SetMenuIsOpen(false)
+    end)
 end
 
 -- Capture Prompts
@@ -131,13 +158,29 @@ end
 -- Scan for purchase overlays
 task.spawn(function()
     while task.wait(1) do
-        for _, gui in ipairs(CoreGui:GetChildren()) do
+        local safeGui = getSafeGui()
+        for _, gui in ipairs(safeGui:GetChildren()) do
+            -- Look for old UI
             if gui:IsA("ScreenGui") and (gui.Name == "PurchasePrompt" or gui:FindFirstChild("PurchaseFrame")) then
                 local frame = gui:FindFirstChild("PurchaseFrame") or gui:FindFirstChildOfClass("Frame")
                 if frame and not frame:FindFirstChild("FreeButton") then
                     createButton(frame, "FreeButton", "FREE PURCHASE", COLORS.IDLE, function()
                         if LastPrompt.Id then finishPurchase(LastPrompt.Id) end
                     end)
+                end
+            end
+            -- Look for new Foundation UI
+            if gui:IsA("ScreenGui") and gui.Name == "FoundationOverlay" then
+                local safeArea = gui:FindFirstChild("SafeAreaFrame")
+                local portal = safeArea and safeArea:FindFirstChild("OverlayPortal")
+                local sheet = portal and portal:FindFirstChild("SheetContainer")
+                local content = sheet and sheet:FindFirstChild("Content")
+                if content and not content:FindFirstChild("FreeButton") then
+                    local btn = createButton(content, "FreeButton", "FREE PURCHASE", COLORS.IDLE, function()
+                        if LastPrompt.Id then finishPurchase(LastPrompt.Id) end
+                    end)
+                    btn.Size = UDim2.new(1, 0, 0, 40)
+                    btn.Position = UDim2.new(0, 0, 0, 0)
                 end
             end
         end
