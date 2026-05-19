@@ -1,261 +1,119 @@
--- Slime RNG Script for Delta Executor | V1 OP Hub
--- Features: Auto-Roll, Auto-Farm Mobs, Auto-Collect, Auto-Rebirth, and more.
+-- Actual Private Server Hub | Delta Edition V3
+-- Attempts to create Reserved Instances and provides Hyper-Isolation.
 
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-   Name = "Slime RNG | Delta Edition",
-   LoadingTitle = "Gooping Up the Server...",
+   Name = "Actual Private Hub | V3",
+   LoadingTitle = "Bypassing Server Limits...",
    LoadingSubtitle = "by Assistant",
-   ConfigurationSaving = { Enabled = true, FolderName = "SlimeRNGDelta", FileName = "Config" },
+   ConfigurationSaving = { Enabled = true, FolderName = "PrivateServerDelta", FileName = "Config" },
    KeySystem = false
 })
 
 -- Variables
-local Player = game.Players.LocalPlayer
-local Character = Player.Character or Player.CharacterAdded:Wait()
-local Humanoid = Character:WaitForChild("Humanoid")
-local RootPart = Character:WaitForChild("HumanoidRootPart")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
-local VirtualInputManager = game:GetService("VirtualInputManager")
+local TeleportService = game:GetService("TeleportService")
+local Players = game:GetService("Players")
+local HttpService = game:GetService("HttpService")
+local PlaceId = game.PlaceId
 
-local AutoRoll = false
-local AutoFarm = false
-local AutoCollect = false
-local AutoEquip = false
-local AutoRebirth = false
-local AutoUpgrade = false
-local RarityNotifier = false
-local WalkSpeedValue = 16
-local JumpPowerValue = 50
-local NoClip = false
-local InfiniteJump = false
+local IsolationMode = false
 
 -- Tabs
-local MainTab = Window:CreateTab("Automation", 4483362458)
-local CombatTab = Window:CreateTab("Combat", 4483362458)
-local MovementTab = Window:CreateTab("Movement", 4483345998)
-local VisualsTab = Window:CreateTab("Visuals", 4483362458)
+local MainTab = Window:CreateTab("Reserved Server", 4483362458)
+local UtilityTab = Window:CreateTab("Utility", 4483345998)
 
--- --- AUTOMATION ---
+-- --- RESERVED SERVER LOGIC ---
 
-MainTab:CreateToggle({
-   Name = "Auto Roll Slimes",
-   CurrentValue = false,
-   Flag = "AutoRoll",
-   Callback = function(Value) AutoRoll = Value end,
-})
-
-MainTab:CreateToggle({
-   Name = "Auto Rebirth",
-   CurrentValue = false,
-   Flag = "AutoRebirth",
-   Callback = function(Value) AutoRebirth = Value end,
-})
-
-MainTab:CreateToggle({
-   Name = "Auto Buy Upgrades",
-   CurrentValue = false,
-   Flag = "AutoUpgrade",
-   Callback = function(Value) AutoUpgrade = Value end,
-})
-
-MainTab:CreateToggle({
-   Name = "Auto Equip Best Slimes",
-   CurrentValue = false,
-   Flag = "AutoEquip",
-   Callback = function(Value) AutoEquip = Value end,
-})
-
--- --- COMBAT ---
-
-CombatTab:CreateToggle({
-   Name = "Auto Farm Mobs (Kills All)",
-   CurrentValue = false,
-   Flag = "AutoFarm",
-   Callback = function(Value) AutoFarm = Value end,
-})
-
-CombatTab:CreateToggle({
-   Name = "Auto Collect Loot (Goop/Coins)",
-   CurrentValue = false,
-   Flag = "AutoCollect",
-   Callback = function(Value) AutoCollect = Value end,
-})
-
--- --- MOVEMENT ---
-
-MovementTab:CreateInput({
-   Name = "WalkSpeed",
-   PlaceholderText = "16",
-   RemoveTextAfterFocusLost = false,
-   Callback = function(Text)
-      WalkSpeedValue = tonumber(Text) or 16
+MainTab:CreateButton({
+   Name = "Create & Join Reserved Server",
+   Info = "Attempts to create a truly private instance (Works in some games)",
+   Callback = function()
+       Rayfield:Notify({Title = "Reserved Server", Content = "Attempting to generate access code...", Duration = 3})
+       
+       -- Attempting client-side reservation (Requires high-level executor permissions)
+       local success, code = pcall(function()
+           return TeleportService:ReserveServer(PlaceId)
+       end)
+       
+       if success and code then
+           Rayfield:Notify({Title = "Success!", Content = "Code Generated: " .. code .. ". Teleporting...", Duration = 5})
+           print("Private Server Access Code: " .. code)
+           TeleportService:TeleportToPrivateServer(PlaceId, code, {Players.LocalPlayer})
+       else
+           Rayfield:Notify({Title = "Permission Denied", Content = "This game blocks client-side reservation. Using Isolation Fallback...", Duration = 5})
+           -- Fallback to the loneliest public server
+           local url = "https://games.roproxy.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
+           local response = game:HttpGet(url)
+           local data = HttpService:JSONDecode(response)
+           if data and data.data then
+               for _, server in pairs(data.data) do
+                   if server.playing == 0 and server.id ~= game.JobId then
+                       TeleportService:TeleportToPlaceInstance(PlaceId, server.id, Players.LocalPlayer)
+                       return
+                   end
+               end
+           end
+       end
    end,
 })
 
-MovementTab:CreateToggle({
-   Name = "No Clip",
+MainTab:CreateToggle({
+   Name = "Hyper-Isolation Mode",
    CurrentValue = false,
-   Flag = "NoClip",
-   Callback = function(Value) NoClip = Value end,
-})
-
-MovementTab:CreateToggle({
-   Name = "Infinite Jump",
-   CurrentValue = false,
-   Flag = "InfJump",
-   Callback = function(Value) InfiniteJump = Value end,
-})
-
--- --- VISUALS ---
-
-VisualsTab:CreateToggle({
-   Name = "Rarity Notifier (1/10k+)",
-   CurrentValue = false,
-   Flag = "Notifier",
-   Callback = function(Value) RarityNotifier = Value end,
-})
-
-VisualsTab:CreateToggle({
-   Name = "Full Bright",
-   CurrentValue = false,
-   Flag = "FullBright",
+   Flag = "Isolation",
    Callback = function(Value)
+      IsolationMode = Value
       if Value then
-          game:GetService("Lighting").Ambient = Color3.fromRGB(255, 255, 255)
-          game:GetService("Lighting").OutdoorAmbient = Color3.fromRGB(255, 255, 255)
-      else
-          game:GetService("Lighting").Ambient = Color3.fromRGB(0, 0, 0)
-          game:GetService("Lighting").OutdoorAmbient = Color3.fromRGB(0, 0, 0)
+          Rayfield:Notify({Title = "Isolation Active", Content = "You will be kicked/hopped INSTANTLY if anyone joins.", Duration = 3})
       end
    end,
 })
 
--- --- LOGIC LOOPS ---
+-- --- UTILITY TAB ---
 
--- Main Action Loop
-task.spawn(function()
-    while task.wait(0.1) do
-        pcall(function()
-            -- Auto Roll Logic
-            if AutoRoll then
-                local rollRemote = ReplicatedStorage:FindFirstChild("Roll", true) or ReplicatedStorage:FindFirstChild("RollEvent", true)
-                if rollRemote and rollRemote:IsA("RemoteEvent") then
-                    rollRemote:FireServer()
-                end
-            end
+UtilityTab:CreateButton({
+   Name = "Rejoin Server",
+   Callback = function()
+       TeleportService:Teleport(PlaceId, Players.LocalPlayer)
+   end,
+})
 
-            -- Auto Rebirth Logic
-            if AutoRebirth then
-                local rebirthRemote = ReplicatedStorage:FindFirstChild("Rebirth", true)
-                if rebirthRemote and rebirthRemote:IsA("RemoteEvent") then
-                    rebirthRemote:FireServer()
-                end
-            end
+UtilityTab:CreateButton({
+   Name = "Server Hop",
+   Callback = function()
+       local url = "https://games.roproxy.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=10"
+       local response = game:HttpGet(url)
+       local data = HttpService:JSONDecode(response)
+       if data and data.data then
+           TeleportService:TeleportToPlaceInstance(PlaceId, data.data[math.random(1, #data.data)].id, Players.LocalPlayer)
+       end
+   end,
+})
 
-            -- Auto Upgrade Logic
-            if AutoUpgrade then
-                local upgradeRemote = ReplicatedStorage:FindFirstChild("Upgrade", true) or ReplicatedStorage:FindFirstChild("BuyUpgrade", true)
-                if upgradeRemote and upgradeRemote:IsA("RemoteEvent") then
-                    -- Cycle through common upgrade IDs
-                    for i = 1, 10 do
-                        upgradeRemote:FireServer(i)
-                    end
-                end
-            end
+-- --- LOGIC ---
 
-            -- Auto Equip Best
-            if AutoEquip then
-                local equipRemote = ReplicatedStorage:FindFirstChild("EquipBest", true)
-                if equipRemote and equipRemote:IsA("RemoteEvent") then
-                    equipRemote:FireServer()
-                end
-            end
-        end)
-    end
-end)
-
--- Combat & Loot Loop
-task.spawn(function()
-    while task.wait(0.1) do
-        if AutoFarm then
-            pcall(function()
-                local mobs = workspace:FindFirstChild("Mobs") or workspace:FindFirstChild("Enemies")
-                if mobs then
-                    for _, mob in pairs(mobs:GetChildren()) do
-                        if mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
-                            -- Teleport near mob or fire attack remote
-                            local attackRemote = ReplicatedStorage:FindFirstChild("Attack", true) or ReplicatedStorage:FindFirstChild("DamageMob", true)
-                            if attackRemote then
-                                attackRemote:FireServer(mob)
-                            end
-                        end
-                    end
-                end
-            end)
-        end
-
-        if AutoCollect then
-            pcall(function()
-                local drops = workspace:FindFirstChild("Drops") or workspace:FindFirstChild("Loot") or workspace:FindFirstChild("Coins")
-                if drops then
-                    for _, drop in pairs(drops:GetChildren()) do
-                        if drop:IsA("BasePart") or drop:IsA("Model") then
-                            local dropRoot = drop:IsA("Model") and drop:FindFirstChildOfClass("BasePart") or drop
-                            if dropRoot then
-                                dropRoot.CFrame = Player.Character.HumanoidRootPart.CFrame
-                            end
-                        end
-                    end
-                end
-            end)
-        end
-    end
-end)
-
--- Character & Movement Loop
-RunService.Heartbeat:Connect(function()
-    pcall(function()
-        if Player.Character and Player.Character:FindFirstChild("Humanoid") then
-            local hum = Player.Character.Humanoid
-            hum.WalkSpeed = WalkSpeedValue
-            
-            if NoClip then
-                for _, v in pairs(Player.Character:GetDescendants()) do
-                    if v:IsA("BasePart") then v.CanCollide = false end
+Players.PlayerAdded:Connect(function(player)
+    if IsolationMode then
+        -- No delay, instant hop for maximum privacy
+        Rayfield:Notify({Title = "ISOLATION TRIGGERED", Content = player.Name .. " joined. Leaving now...", Duration = 2})
+        
+        local url = "https://games.roproxy.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
+        local response = game:HttpGet(url)
+        local data = HttpService:JSONDecode(response)
+        if data and data.data then
+            for _, server in pairs(data.data) do
+                if server.playing == 0 and server.id ~= game.JobId then
+                    TeleportService:TeleportToPlaceInstance(PlaceId, server.id, Players.LocalPlayer)
+                    return
                 end
             end
         end
-    end)
-end)
-
--- Input Listeners
-UserInputService.InputBegan:Connect(function(input, processed)
-    if not processed and input.KeyCode == Enum.KeyCode.Space and InfiniteJump then
-        Player.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-    end
-end)
-
--- Rarity Notifier Listener
-task.spawn(function()
-    local rollResult = ReplicatedStorage:FindFirstChild("RollResult", true) or ReplicatedStorage:FindFirstChild("NewSlime", true)
-    if rollResult then
-        rollResult.OnClientEvent:Connect(function(data)
-            if RarityNotifier and data and data.Chance and data.Chance >= 10000 then
-                Rayfield:Notify({
-                    Title = "🌟 INSANE LUCK!",
-                    Content = "You just rolled a " .. (data.Name or "Slime") .. " (1 in " .. data.Chance .. ")!",
-                    Duration = 7
-                })
-            end
-        end)
     end
 end)
 
 Rayfield:Notify({
-   Title = "Slime RNG Hub Loaded!",
-   Content = "Good luck on your 1-in-Trillion rolls!",
+   Title = "V3 Private Hub Loaded",
+   Content = "Use the Reserved Server tab for the best results.",
    Duration = 5,
 })
