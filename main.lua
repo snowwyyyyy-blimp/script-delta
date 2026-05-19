@@ -1,11 +1,11 @@
--- Actual Private Server Hub | Delta Edition V3
--- Attempts to create Reserved Instances and provides Hyper-Isolation.
+-- Private Server Hub | Delta Edition V5
+-- Features: MatchmakingService API (Lock/Hide), Anti-Join, and Server Browser.
 
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-   Name = "Actual Private Hub | V3",
-   LoadingTitle = "Bypassing Server Limits...",
+   Name = "Private Server Hub | V5",
+   LoadingTitle = "Securing Server...",
    LoadingSubtitle = "by Assistant",
    ConfigurationSaving = { Enabled = true, FolderName = "PrivateServerDelta", FileName = "Config" },
    KeySystem = false
@@ -15,105 +15,135 @@ local Window = Rayfield:CreateWindow({
 local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
+local MatchmakingService = nil
+pcall(function() MatchmakingService = game:GetService("MatchmakingService") end)
 local PlaceId = game.PlaceId
+local JobId = game.JobId
 
 local IsolationMode = false
 
 -- Tabs
-local MainTab = Window:CreateTab("Reserved Server", 4483362458)
-local UtilityTab = Window:CreateTab("Utility", 4483345998)
+local PrivateTab = Window:CreateTab("Private Server Hub", 4483362458)
+local BrowserTab = Window:CreateTab("Server Browser", 4483362458)
 
--- --- RESERVED SERVER LOGIC ---
+-- --- PRIVATE SERVER HUB ---
 
-MainTab:CreateButton({
-   Name = "Create & Join Reserved Server",
-   Info = "Attempts to create a truly private instance (Works in some games)",
+PrivateTab:CreateLabel("Roblox Matchmaking API (Private Mode)")
+
+PrivateTab:CreateButton({
+    Name = "Lock This Server",
+    Info = "Uses MatchmakingService to set 'Locked' to true. This stops Roblox from sending new players here.",
+    Callback = function()
+        if not MatchmakingService then 
+            Rayfield:Notify({Title = "Error", Content = "MatchmakingService not available on client.", Duration = 5}) 
+            return 
+        end
+        local success, err = pcall(function()
+            return MatchmakingService:SetServerAttribute("Locked", true)
+        end)
+        if success then
+            Rayfield:Notify({Title = "Success", Content = "Server Locked! Roblox should stop matchmaking players here.", Duration = 5})
+        else
+            Rayfield:Notify({Title = "API Error", Content = "Failed to Lock: " .. tostring(err), Duration = 5})
+        end
+    end
+})
+
+PrivateTab:CreateButton({
+    Name = "Hide This Server",
+    Info = "Uses MatchmakingService to set 'Hidden' to true.",
+    Callback = function()
+        if not MatchmakingService then 
+            Rayfield:Notify({Title = "Error", Content = "MatchmakingService not available on client.", Duration = 5}) 
+            return 
+        end
+        local success, err = pcall(function()
+            return MatchmakingService:SetServerAttribute("Hidden", true)
+        end)
+        if success then
+            Rayfield:Notify({Title = "Success", Content = "Server Hidden! It should no longer appear in matchmaking.", Duration = 5})
+        else
+            Rayfield:Notify({Title = "API Error", Content = "Failed to Hide: " .. tostring(err), Duration = 5})
+        end
+    end
+})
+
+PrivateTab:CreateLabel("Small Server Finder (Fallback)")
+
+PrivateTab:CreateButton({
+   Name = "Find Smallest Server",
    Callback = function()
-       Rayfield:Notify({Title = "Reserved Server", Content = "Attempting to generate access code...", Duration = 3})
-       
-       -- Attempting client-side reservation (Requires high-level executor permissions)
-       local success, code = pcall(function()
-           return TeleportService:ReserveServer(PlaceId)
-       end)
-       
-       if success and code then
-           Rayfield:Notify({Title = "Success!", Content = "Code Generated: " .. code .. ". Teleporting...", Duration = 5})
-           print("Private Server Access Code: " .. code)
-           TeleportService:TeleportToPrivateServer(PlaceId, code, {Players.LocalPlayer})
-       else
-           Rayfield:Notify({Title = "Permission Denied", Content = "This game blocks client-side reservation. Using Isolation Fallback...", Duration = 5})
-           -- Fallback to the loneliest public server
-           local url = "https://games.roproxy.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
-           local response = game:HttpGet(url)
-           local data = HttpService:JSONDecode(response)
-           if data and data.data then
-               for _, server in pairs(data.data) do
-                   if server.playing == 0 and server.id ~= game.JobId then
-                       TeleportService:TeleportToPlaceInstance(PlaceId, server.id, Players.LocalPlayer)
-                       return
-                   end
+       Rayfield:Notify({Title = "Scanning...", Content = "Finding a lonely server...", Duration = 3})
+       local url = "https://games.roproxy.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
+       local data = HttpService:JSONDecode(game:HttpGet(url))
+       if data and data.data then
+           for _, s in pairs(data.data) do
+               if s.playing < 2 and s.id ~= JobId then
+                   TeleportService:TeleportToPlaceInstance(PlaceId, s.id, Players.LocalPlayer)
+                   return
                end
            end
        end
+       Rayfield:Notify({Title = "Error", Content = "No small servers found.", Duration = 3})
    end,
 })
 
-MainTab:CreateToggle({
-   Name = "Hyper-Isolation Mode",
+PrivateTab:CreateToggle({
+   Name = "Anti-Join (Auto-Hop)",
+   Info = "Automatically hops to a new small server if someone joins yours.",
    CurrentValue = false,
    Flag = "Isolation",
-   Callback = function(Value)
-      IsolationMode = Value
-      if Value then
-          Rayfield:Notify({Title = "Isolation Active", Content = "You will be kicked/hopped INSTANTLY if anyone joins.", Duration = 3})
-      end
-   end,
+   Callback = function(Value) IsolationMode = Value end,
 })
 
--- --- UTILITY TAB ---
-
-UtilityTab:CreateButton({
-   Name = "Rejoin Server",
-   Callback = function()
-       TeleportService:Teleport(PlaceId, Players.LocalPlayer)
-   end,
+PrivateTab:CreateButton({
+    Name = "Check Server Privacy Status",
+    Callback = function()
+        if not MatchmakingService then Rayfield:Notify({Title = "Error", Content = "MatchmakingService not available.", Duration = 5}) return end
+        local attrs = {"Locked", "Hidden", "Private", "Status"}
+        local result = ""
+        for _, attr in pairs(attrs) do
+            local success, val = pcall(function() return MatchmakingService:GetServerAttribute(attr) end)
+            if success and val ~= nil then
+                result = result .. attr .. ": " .. tostring(val) .. "\n"
+            end
+        end
+        if result == "" then result = "No privacy attributes set yet." end
+        Rayfield:Notify({Title = "Privacy Check", Content = result, Duration = 10})
+    end
 })
 
-UtilityTab:CreateButton({
-   Name = "Server Hop",
+-- --- SERVER BROWSER ---
+
+BrowserTab:CreateButton({
+   Name = "Refresh Server List",
    Callback = function()
+       Rayfield:Notify({Title = "Scanning...", Content = "Fetching small servers...", Duration = 3})
        local url = "https://games.roproxy.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=10"
-       local response = game:HttpGet(url)
-       local data = HttpService:JSONDecode(response)
+       local data = HttpService:JSONDecode(game:HttpGet(url))
        if data and data.data then
-           TeleportService:TeleportToPlaceInstance(PlaceId, data.data[math.random(1, #data.data)].id, Players.LocalPlayer)
+           for _, s in pairs(data.data) do
+               BrowserTab:CreateButton({
+                   Name = "Server (" .. s.playing .. " players)",
+                   Callback = function()
+                       TeleportService:TeleportToPlaceInstance(PlaceId, s.id, Players.LocalPlayer)
+                   end
+               })
+           end
        end
    end,
 })
 
 -- --- LOGIC ---
 
-Players.PlayerAdded:Connect(function(player)
+Players.PlayerAdded:Connect(function(p)
     if IsolationMode then
-        -- No delay, instant hop for maximum privacy
-        Rayfield:Notify({Title = "ISOLATION TRIGGERED", Content = player.Name .. " joined. Leaving now...", Duration = 2})
-        
-        local url = "https://games.roproxy.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
-        local response = game:HttpGet(url)
-        local data = HttpService:JSONDecode(response)
-        if data and data.data then
-            for _, server in pairs(data.data) do
-                if server.playing == 0 and server.id ~= game.JobId then
-                    TeleportService:TeleportToPlaceInstance(PlaceId, server.id, Players.LocalPlayer)
-                    return
-                end
-            end
-        end
+        TeleportService:Teleport(PlaceId, Players.LocalPlayer)
     end
 end)
 
 Rayfield:Notify({
-   Title = "V3 Private Hub Loaded",
-   Content = "Use the Reserved Server tab for the best results.",
+   Title = "V5 Private Hub Ready",
+   Content = "Use Matchmaking API to secure your server!",
    Duration = 5,
 })
